@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: k3s-8082-service  # サービス名
+spec:
+  type: LoadBalancer     # ロードバランサ
+  selector:
+    app: k3s-8082-app    # 連携するPodのラベルを指定
+  ports:
+    - protocol: TCP
+      port: 8082         # 外部公開ポート
+      targetPort: 8082   # Pod側で動いているアプリのポート
+
+

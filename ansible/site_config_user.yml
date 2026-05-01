@@ -1,0 +1,35 @@
+- hosts: myhosts
+  vars:
+    user_name: "sato"
+  tasks:
+    - name: Install pip
+      pip:
+        name: passlib
+        state: present
+      # ローカルにpasslibを入れてユーザ生成できるようにする
+      delegate_to: localhost
+
+    - name: satoユーザーを作成する
+      ansible.builtin.user:
+        name: "{{user_name}}"
+        shell: /bin/bash
+        create_home: yes
+        password: "{{ user_name | password_hash('sha512') }}"
+        state: present
+      become: True
+
+    - name: satoユーザーは2222を呼び出す
+      ansible.builtin.blockinfile:
+        path: /etc/ssh/sshd_config
+        block: |
+          Match User {{user_name}}
+              ForceCommand /usr/bin/nc localhost 2222
+      notify: Restart sshd
+      become: True
+
+  handlers:
+    - name: Restart sshd
+      service:
+        name: sshd
+        state: restarted
+      become: True

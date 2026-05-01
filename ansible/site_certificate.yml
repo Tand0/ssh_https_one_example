@@ -1,0 +1,40 @@
+- hosts: myhosts
+  tasks:
+    - name: Create a directory
+      file:
+        path: /etc/ssl/private/
+        state: directory
+        mode: '0755'
+      become: True
+    - name: Create private key
+      community.crypto.openssl_privatekey:
+        path: /etc/ssl/private/server.key
+        size: 2048
+        type: RSA
+      become: True
+    - name: Create CSR
+      community.crypto.openssl_csr:
+        path: /etc/ssl/certs/server.csr
+        privatekey_path: /etc/ssl/private/server.key
+        common_name: "example.com"
+        subject_alt_name: "DNS:example.com,DNS:://example.com"
+      become: True
+    - name: Create ORE-ORE certificate (10 year)
+      community.crypto.x509_certificate:
+        path: /etc/ssl/certs/server.crt
+        privatekey_path: /etc/ssl/private/server.key
+        csr_path: /etc/ssl/certs/server.csr
+        provider: selfsigned
+        selfsigned_not_after: "+3650d"
+      become: True
+    - name: chmod
+      file:
+        path: "{{item}}"
+        mode: '0666'
+        owner: root
+        group: root
+      loop:
+        - /etc/ssl/private/server.key
+        - /etc/ssl/certs/server.csr
+      become: True
+

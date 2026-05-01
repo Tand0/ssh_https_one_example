@@ -1,0 +1,59 @@
+- hosts: myhosts
+  tasks:
+    - shell: "systemctl status k3s"
+      register: nodes
+      become: True
+    - debug:
+        var: nodes
+
+    - shell: "sudo k3s crictl images"
+      register: nodes
+      become: True
+    - debug:
+        var: nodes
+
+    - name: インポートされたイメージの確認 (デバッグ用)
+      ansible.builtin.command:
+        cmd: "k3s ctr images list"
+      register: image_list
+      changed_when: false
+      become: True
+    - debug:
+        var: image_list
+
+    - shell: "sudo k3s kubectl get nodes"
+      register: nodes
+      become: True
+    - debug:
+        var: nodes
+
+    - shell: "sudo k3s kubectl get pods --all-namespaces"
+      register: nodes
+      become: True
+    - debug:
+        var: nodes
+  
+    - shell: "kubectl get svc"
+      register: nodes
+      become: True
+    - debug:
+        var: nodes
+
+    - name: k3sのpods確認
+      ansible.builtin.command:
+        cmd: kubectl get pods
+      register: pod_list
+      become: True
+    - name: 取得した結果を表示
+      debug:
+        var: pod_list
+
+    - name: k3sのCoreDNS Service IPを得る
+      shell: "kubectl get svc kube-dns -n kube-system -o jsonpath='{.spec.clusterIP}'"
+      register: coredns_ip
+      changed_when: false
+      become: True
+    - debug:
+        var: coredns_ip
+
+

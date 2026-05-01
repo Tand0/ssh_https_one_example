@@ -1,0 +1,10 @@
+- hosts: myhosts
+  tasks:
+    - name: サービスをループで実行する
+      ansible.builtin.include_tasks: site_service_stop.yml
+      loop:
+        - service_name: "fastapi8080"
+        - service_name: "fastapi8081"
+      loop_control:
+        loop_var: tasks_item
+

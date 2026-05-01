@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: k3s-8080-service  # サービス名
+spec:
+  selector:
+    app: k3s-8080-app    # 連携するPodのラベルを指定
+  ports:
+    - protocol: TCP
+      port: 8080       # サービスが受け付けるポート
+      targetPort: 8080 # Pod側で動いているアプリのポート
+  type: ClusterIP      # クラスター内部用（外部公開ならNodePort等）

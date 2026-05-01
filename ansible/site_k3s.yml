@@ -1,0 +1,122 @@
+
+- name: docker/k3s の ビルド
+  hosts: myhosts
+  vars:
+    loop_data: 
+      - service_name: "k3s-8080"
+        archive_path: "docker_result.tar"
+      - service_name: "k3s-8081"
+        archive_path: "docker_result.tar"
+      - service_name: "k3s-2222"
+        archive_path: "docker_result.tar"
+      - service_name: "k3s-8082"
+        archive_path: "docker_result.tar"
+  tasks:
+    - name: ローカルのフォルダをリモートにコピー
+      copy:
+        src: "{{ item.service_name }}"
+        dest: .
+        mode: '0755'
+      loop: "{{loop_data}}"
+    - name: Dockerfileからイメージをビルド
+      community.docker.docker_image:
+        name: "{{ item.service_name }}:v1.0" # 作成するイメージ名
+        build:
+          path: "{{ item.service_name }}" # Dockerfileがあるディレクトリ
+        archive_path: "./{{ item.service_name }}/{{ item.archive_path }}"
+        source: build
+      loop: "{{loop_data}}"
+      become: yes
+
+    - name: ディレクトリを作成する
+      ansible.builtin.file:
+        path: ./k3s-8082/ssh
+        state: directory
+    - name: リモートサーバー内でファイルをコピーする
+      ansible.builtin.copy:
+        src: /etc/ssl/certs/server.crt
+        dest: ./k3s-8082/ssh/server.crt
+        remote_src: yes
+      become: yes
+    - name: リモートサーバー内でファイルをコピーする
+      ansible.builtin.copy:
+        src: /etc/ssl/private/server.key
+        dest: ./k3s-8082/ssh/server.key
+        remote_src: yes
+      become: yes
+
+    - name: K3sにイメージをインポート
+      ansible.builtin.command:
+        cmd: "k3s ctr images import ./{{ item.service_name }}/{{ item.archive_path }}"
+      register: import_result
+      changed_when: "'importing' in import_result.stdout"
+      loop: "{{loop_data}}"
+      become: True
+
+    - name: k3sにデプロイ(pod)
+      ansible.builtin.command:
+        cmd: "kubectl apply -f  ./{{ item.service_name }}/deployment.yaml"
+      register: apply_register
+      loop: "{{loop_data}}"
+      become: True
+    - debug:
+        var: apply_register
+
+    - name: k3sにデプロイ(service)
+      ansible.builtin.command:
+        cmd: "kubectl apply -f  ./{{ item.service_name }}/service.yaml"
+      register: apply_register
+      loop: "{{loop_data}}"
+      become: True
+    - debug:
+        var: apply_register
+
+    - name: systemd-resolvedの設定ディレクトリを作成
+      file:
+        path: /etc/systemd/resolved.conf.d
+        state: directory
+        mode: '0755'
+      become: True
+
+    - name: k3sのCoreDNS Service IPを得る
+      shell: "kubectl get svc kube-dns -n kube-system -o jsonpath='{.spec.clusterIP}'"
+      register: coredns_ip
+      changed_when: false
+      become: True
+    - debug:
+        var: coredns_ip
+
+    - name: k3s専用のDNS振り分け設定を配置
+      copy:
+        dest: /etc/systemd/resolved.conf.d/k3s-dns.conf
+        content: |
+          [Resolve]
+          DNS={{ coredns_ip.stdout }}
+          Domains=~svc.cluster.local ~cluster.local
+        mode: '0644'
+      become: True
+      notify: Restart systemd-resolved
+
+    - name: Ensure subsystem is configured
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^Subsystem\s+echo-subsystem'
+        line: 'Subsystem echo-subsystem /usr/bin/nc k3s-2222-service.default.svc.cluster.local 2222'
+        state: present
+      notify: Restart sshd
+      become: True
+
+  handlers:
+    - name: Restart systemd-resolved
+      systemd:
+        name: systemd-resolved
+        state: restarted
+      become: True
+
+    - name: Restart sshd
+      service:
+        name: sshd
+        state: restarted
+      become: True
+      
+- import_playbook: site_k3s_status.yml

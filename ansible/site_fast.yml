@@ -1,0 +1,13 @@
+- hosts: myhosts
+  tasks:
+    - name: Install paramiko
+      pip:
+        name: "{{item}}"
+        state: present
+      loop:
+        - fastapi
+        - uvicorn
+
+- name: ソフトのアップデート
+  import_playbook: site_update.yml
+

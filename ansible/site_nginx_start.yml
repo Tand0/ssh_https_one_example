@@ -1,0 +1,63 @@
+- name: バックグラウンドのサービスを起動
+  import_playbook: site_fast_invoke_start.yml
+
+- name: Nginxリバースプロキシの設定
+  hosts: myhosts
+  vars:
+    server_hostname: example.com
+  tasks:
+
+    - name: Nginxをインストール
+      ansible.builtin.package:
+        name: nginx
+        state: present
+      become: True
+
+    - name: デフォルト設定を削除
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/nginx/sites-enabled/default
+        - /etc/nginx/sites-available/default
+      notify: Reload Nginx
+      become: True
+
+    - name: リバースプロキシの設定ファイルを配置
+      ansible.builtin.copy:
+        dest: /etc/nginx/conf.d/reverse_proxy.conf
+        content: |
+          server {
+              listen 8082 ssl;
+              server_name {{ server_hostname }};
+              # 証明書と秘密鍵のパスを指定
+              ssl_certificate /etc/ssl/certs/server.crt;
+              ssl_certificate_key /etc/ssl/private/server.key;
+              location /abc {
+                  proxy_pass http://localhost:8080/abc;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+              }
+              location /efg {
+                  proxy_pass http://localhost:8081/efg;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+              }
+          }
+        mode: '0644'
+      notify: Reload Nginx
+      become: True
+
+    - name: Nginxを起動・有効化
+      ansible.builtin.systemd:
+        name: nginx
+        state: started # handlersはreloadなのに注意
+        enabled: true
+      become: True
+
+  handlers:
+    - name: Reload Nginx
+      ansible.builtin.systemd:
+        name: nginx
+        state: reloaded
+      become: True

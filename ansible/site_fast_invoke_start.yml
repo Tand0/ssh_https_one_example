@@ -1,0 +1,19 @@
+- name: ソフトのアップデート
+  import_playbook: site_fast.yml
+
+- hosts: myhosts
+  tasks:
+    - name: サービスをループで実行する
+      ansible.builtin.include_tasks: site_service_start.yml
+      loop:
+        - service_name: "fastapi8080"
+          user_name: "{{ansible_env.USER}}"
+          base_dir: "{{ansible_env.PWD}}/src"
+          invoker: "python3 server_fast.py 8080 abc"
+        - service_name: "fastapi8081"
+          user_name: "{{ansible_env.USER}}"
+          base_dir: "{{ansible_env.PWD}}/src"
+          invoker: "python3 server_fast.py 8081 efg"
+      loop_control:
+        loop_var: tasks_item
+

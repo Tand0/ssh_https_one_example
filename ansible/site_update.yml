@@ -1,0 +1,22 @@
+- hosts: myhosts
+  tasks:
+    - name: Install paramiko
+      pip:
+        name: paramiko
+        state: present
+    - name: Create a directory
+      file:
+        path: src
+        state: directory
+        mode: '0755'
+    - find:
+        paths: src
+        patterns: "*server*"
+        recurse: yes
+      delegate_to: localhost
+      register: found_files
+    - name: update File
+      copy:
+        src: "{{item.path}}"
+        dest: "{{item.path}}"
+      loop: "{{ found_files.files }}"

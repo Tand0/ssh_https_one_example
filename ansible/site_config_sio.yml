@@ -1,0 +1,18 @@
+- hosts: myhosts
+  tasks:
+    - name: Ensure subsystem is configured
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^Subsystem\s+echo-subsystem'
+        line: 'Subsystem echo-subsystem python3 {{ansible_env.PWD}}/src/server_sio.py'
+        state: present
+      notify: Restart sshd
+      become: True
+
+  handlers:
+    - name: Restart sshd
+      service:
+        name: sshd
+        state: restarted
+      become: True
+

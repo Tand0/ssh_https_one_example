@@ -1,0 +1,49 @@
+
+
+- name: docker の インストール
+  hosts: myhosts
+  become: yes
+  vars:
+    # 指定したユーザーをdockerグループに追加
+    docker_users:
+      - "{{ ansible_env.USER }}"
+    # Docker Compose をインストール
+    docker_install_compose_plugin: true
+  roles:
+    - geerlingguy.docker
+
+- name: k3s の インストール
+  hosts: myhosts
+  vars:
+    server_host: 130.81.1.2
+    agent_host: 130.81.1.2
+  tasks:
+    - name: Clone git repository locally
+      ansible.builtin.git:
+        repo: https://github.com/k3s-io/k3s-ansible.git
+        dest: k3s-ansible
+        clone: yes
+        update: yes
+      delegate_to: localhost
+      become: no
+
+    - name: copy to file
+      ansible.builtin.copy:
+        src: k3s-ansible/inventory-sample.yml
+        dest: k3s-invntory.yml
+      delegate_to: localhost
+
+    - name: inventoryの変更
+      ansible.builtin.lineinfile:
+        path: "k3s-invntory.yml"
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      loop:
+        - { regexp: '192.16.35.11:', line: '        {{ server_host }}:' }
+        - { regexp: '192.16.35.12:', line: '' }
+        - { regexp: '192.16.35.13:', line: '' }
+        - { regexp: 'ansible_user:', line: '    ansible_user: "{{ansible_env.USER}}"' }
+        - { regexp: 'Optional vars', line: '    ansible_password: "{% raw %}{{vvv_password}}{% endraw %}"' }
+        - { regexp: 'extra_server_args', line: '    ansible_sudo_pass: "{% raw %}{{vvv_password}}{% endraw %}"' }
+        - { regexp: 'extra_agent_args', line: '    ansible_python_interpreter: /usr/bin/python3' }
+      delegate_to: localhost

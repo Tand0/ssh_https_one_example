@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k3s-8081-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: k3s-8081-app
+  template:
+    metadata:
+      labels:
+        app: k3s-8081-app
+    spec:
+      containers:
+      - name: k3s-8081-app
+        image: docker.io/library/k3s-8081:v1.0 # sudo k3s ctr images listで得たREF
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8081  # ここでポート番号を指定
+          name: http           # ポートに名前を付けると後で便利（任意）
+          protocol: TCP        # デフォルトはTCP

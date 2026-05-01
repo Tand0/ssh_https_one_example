@@ -1,0 +1,38 @@
+- name: systemdユニットファイルの作成(永続化設定)
+  ansible.builtin.copy:
+    content: |
+      [Unit]
+      Description=Service for {{ tasks_item.user_name }}
+      After=network.target
+
+      [Service]
+      User={{ tasks_item.user_name }}
+      Group={{ tasks_item.user_name }}
+      WorkingDirectory={{ tasks_item.base_dir }}
+      #
+      ExecStart={{ tasks_item.invoker }}
+      Restart=always
+
+      [Install]
+      WantedBy=multi-user.target
+    dest: "/etc/systemd/system/{{ tasks_item.service_name }}.service"
+  become: True
+
+- name: サービスの有効化と起動
+  ansible.builtin.systemd:
+    name: "{{ tasks_item.service_name }}"
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
+  become: True
+
+- name: サービスが正常に動いているか確認
+  ansible.builtin.command: systemctl status {{ tasks_item.service_name }}
+  register: service_status
+  changed_when: False
+  ignore_errors: True
+  become: True
+
+- name: ステータスを表示
+  ansible.builtin.debug:
+    var: service_status.stdout_lines
